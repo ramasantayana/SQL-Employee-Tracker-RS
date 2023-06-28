@@ -14,12 +14,79 @@ const connection = mysql.createConnection({
 
 
 function ViewAllEmployee(){
-  connection.query(`select * from employee`, function(err, tables){ 
+  connection.query(`select t1.id,t1.first_name,t1.last_name,t2.title as role,t2.salary,t3.name from employee as t1 JOIN role as t2 ON t2.id = t1.role_id JOIN department as t3 ON t3.id = t2.department_id`, function(err, tables){ 
     console.table(tables);
     showChoice();
 });
 }
 
+async function AddEmployee(){
+  const {first_name}= await inquirer.prompt( {
+    type: 'question',
+    name: 'first_name',
+  })
+  const {last_name}= await inquirer.prompt( {
+    type: 'question',
+    name: 'last_name',
+  })
+  const {role_id}= await inquirer.prompt( {
+    type: 'question',
+    name: 'role_id',
+  })
+  const {manager_id}= await inquirer.prompt( {
+    type: 'question',
+    name: 'manager_id',
+  })
+  connection.query(`insert into employee  (first_name,last_name,role_id,manager_id) values ('${first_name}','${last_name}',${role_id},${manager_id})`,function(err,tables){
+    if(err){
+      console.log(err)
+    }
+    showChoice()
+  })
+}
+async function UpdateEmployee(){
+    let all_employee=await new Promise((resolve,reject)=>{
+      connection.query(`select * from employee`, function(err, tables){ 
+        resolve(tables)
+    });
+    })
+    let all_roles=await new Promise((resolve,reject)=>{
+      connection.query(`select * from role`, function(err, tables){ 
+        resolve(tables)
+    });
+    })
+
+    all_roles=all_roles.map(({id,title})=>({name:title,value:id}))
+    all_employee=all_employee.map(({id,first_name})=>({value:id,name:first_name}));
+    let {employee_id}=await inquirer
+     .prompt([
+      {
+        type: 'list',
+        name: 'employee_id',
+        message: 'select employee to update role',
+        choices: all_employee,
+      },
+    ])
+    let {role_id}=await inquirer
+     .prompt([
+      {
+        type: 'list',
+        name: 'role_id',
+        message: 'select new role',
+        choices: all_roles,
+      },
+    ])
+
+    connection.query(`UPDATE employee SET role_id=${role_id} where id=${employee_id}`,function(err,table){
+      if(err){
+        console.log(err)
+      }
+      showChoice();
+    })
+
+
+    
+}
 
 async function AddRoles(){
   const {title}= await inquirer.prompt( {
@@ -43,7 +110,7 @@ async function AddRoles(){
 }
 
 function ViewAllRoles(){
-  connection.query(`select * from role`, function(err, tables){ 
+  connection.query(`select t1.id,t1.title,t1.salary,t2.name as department from role as t1 JOIN department as t2 ON t2.id = t1.department_id`, function(err, tables){ 
     console.table(tables);
     showChoice();
   })
@@ -99,17 +166,24 @@ function showChoice(){
   .then((answers) => {
     if(answers.selectedOption===1){
        ViewAllEmployee();
-    }else if(answers.selectedOption===6){
-    ViewDeprtment();
-   }else if(answers.selectedOption===7){
-    AddDepartment();
- }
-  else if(answers.selectedOption===5){
-    AddRoles();
- }
-  else if(answers.selectedOption===4){
-    ViewAllRoles();
- }
+    }else if(answers.selectedOption===2){
+       AddEmployee();
+    }else if(answers.selectedOption===3){
+      UpdateEmployee();
+    }
+    else if(answers.selectedOption===4){
+      ViewAllRoles();
+    }
+    else if(answers.selectedOption===5){
+      AddRoles();
+    }
+    else if(answers.selectedOption===6){
+       ViewDeprtment();
+    }
+    else if(answers.selectedOption===7){
+       AddDepartment();
+    }
+
     console.log('Selected option:', answers.selectedOption);
   })
   .catch((error) => {
