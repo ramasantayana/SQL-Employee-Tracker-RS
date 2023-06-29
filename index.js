@@ -14,7 +14,10 @@ const connection = mysql.createConnection({
 
 
 function ViewAllEmployee(){
-  connection.query(`select t1.id,t1.first_name,t1.last_name,t2.title as role,t2.salary,t3.name from employee as t1 JOIN role as t2 ON t2.id = t1.role_id JOIN department as t3 ON t3.id = t2.department_id`, function(err, tables){ 
+  connection.query(`select t1.id,t1.first_name,t1.last_name,t2.title as role,t2.salary,manager.first_name as manager,t3.name from employee as t1 JOIN role as t2 ON t2.id = t1.role_id JOIN department as t3 ON t3.id = t2.department_id  LEFT JOIN employee as manager ON manager.id = t1.manager_id`, function(err, tables){ 
+    if(err){
+      console.log(err)
+    }
     console.table(tables);
     showChoice();
 });
@@ -29,14 +32,43 @@ async function AddEmployee(){
     type: 'question',
     name: 'last_name',
   })
-  const {role_id}= await inquirer.prompt( {
-    type: 'question',
-    name: 'role_id',
+
+  let all_employee=await new Promise((resolve,reject)=>{
+    connection.query(`select * from employee`, function(err, tables){ 
+      resolve(tables)
+  });
   })
-  const {manager_id}= await inquirer.prompt( {
-    type: 'question',
-    name: 'manager_id',
+
+  let all_roles=await new Promise((resolve,reject)=>{
+    connection.query(`select * from role`, function(err, tables){ 
+      resolve(tables)
+  });
   })
+
+  all_roles=all_roles.map(({id,title})=>({name:title,value:id}))
+  all_employee=all_employee.map(({id,first_name})=>({value:id,name:first_name}));
+  all_employee.push({value:null,name:"None"})
+
+  let {manager_id}=await inquirer
+   .prompt([
+    {
+      type: 'list',
+      name: 'manager_id',
+      message: 'select manager for employee',
+      choices: all_employee,
+    },
+  ])
+
+  let {role_id}=await inquirer
+   .prompt([
+    {
+      type: 'list',
+      name: 'role_id',
+      message: 'select role for employee',
+      choices: all_roles,
+    },
+  ])
+
   connection.query(`insert into employee  (first_name,last_name,role_id,manager_id) values ('${first_name}','${last_name}',${role_id},${manager_id})`,function(err,tables){
     if(err){
       console.log(err)
@@ -44,6 +76,8 @@ async function AddEmployee(){
     showChoice()
   })
 }
+
+
 async function UpdateEmployee(){
     let all_employee=await new Promise((resolve,reject)=>{
       connection.query(`select * from employee`, function(err, tables){ 
@@ -97,10 +131,24 @@ async function AddRoles(){
     type: 'question',
     name: 'salary',
   })
-  const {department_id}= await inquirer.prompt( {
-    type: 'question',
-    name: 'department_id',
+  let all_department=await new Promise((resolve,reject)=>{
+    connection.query(`select * from department`, function(err, tables){ 
+      resolve(tables)
+  });
   })
+
+  all_department=all_department.map(({id,name})=>({name:name,value:id}))
+
+  let {department_id}=await inquirer
+  .prompt([
+   {
+     type: 'list',
+     name: 'department_id',
+     message: 'select department for role',
+     choices: all_department,
+   },
+ ])
+
   connection.query(`insert into role (title,salary,department_id) values ('${title}',${salary},${department_id})`,function(err,tables){
     if(err){
       console.log(err)
